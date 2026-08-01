@@ -77,8 +77,8 @@ void HarmonicTremoloAudioProcessor::processBlock(juce::AudioBuffer<float>& buffe
         static_cast<int>(apvts.getRawParameterValue("waveform")->load())));
     dspEngine.setMix(apvts.getRawParameterValue("mix")->load());
 
-    const float* const* inputData = buffer.getArrayOfReadPointerAddresses();
-    float* const* outputData = buffer.getArrayOfWritePointerAddresses();
+    const float* const* inputData = buffer.getArrayOfReadPointers();
+    float* const* outputData = buffer.getArrayOfWritePointers();
 
     dspEngine.processBlock(inputData, outputData, totalNumInputChannels, buffer.getNumSamples());
 }

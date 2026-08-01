@@ -1,3 +1,5 @@
+#pragma once
+
 #if __has_include(<JuceHeader.h>)
  #include <JuceHeader.h>
 #else
