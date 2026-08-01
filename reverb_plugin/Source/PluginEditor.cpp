@@ -188,7 +188,7 @@ void CyberWaveReverbAudioProcessorEditor::paint (juce::Graphics& g)
     g.setColour(juce::Colour(0xfff8fafc));
     g.drawText("DROP IR .WAV FILE HERE", bounds.getWidth() - 280.0f, 30.0f, 240.0f, 16.0f, juce::Justification::centred);
     g.setFont(juce::FontOptions(10.0f, juce::Font::plain));
-    g.setColour(juce::Label::textColourId, juce::Colour(0xff94a3b8));
+    g.setColour(juce::Colour(0xff94a3b8));
     g.drawText("Auto-Fits Algorithmic Reverb Math", bounds.getWidth() - 280.0f, 48.0f, 240.0f, 16.0f, juce::Justification::centred);
 }
 
