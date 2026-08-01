@@ -52,7 +52,7 @@ CyberWaveReverbAudioProcessorEditor::CyberWaveReverbAudioProcessorEditor (CyberW
     addAndMakeVisible(advancedToggleButton);
 
     // Export Pedal Profile (.irprof) Button
-    exportProfileButton.setButtonText("EXPORT PEDAL PROFILE (.IRPROF)");
+    exportProfileButton.setButtonText("EXPORT PROFILE (.IRPROF)");
     exportProfileButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff0284c7));
     exportProfileButton.setColour(juce::TextButton::textColourOffId, juce::Colour(0xffffffff));
     exportProfileButton.onClick = [this]() {
@@ -70,6 +70,26 @@ CyberWaveReverbAudioProcessorEditor::CyberWaveReverbAudioProcessorEditor (CyberW
             });
     };
     addAndMakeVisible(exportProfileButton);
+
+    // Generate C DSP Code (.c) Button
+    generateCCodeButton.setButtonText("GENERATE C DSP CODE (.C)");
+    generateCCodeButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff10b981)); // Emerald Green
+    generateCCodeButton.setColour(juce::TextButton::textColourOffId, juce::Colour(0xffffffff));
+    generateCCodeButton.onClick = [this]() {
+        fileChooser = std::make_unique<juce::FileChooser>(
+            "Generate Standalone C DSP Code for Hardware Pedal Compilation...",
+            juce::File::getSpecialLocation(juce::File::userHomeDirectory).getChildFile("generated_reverb_algo.c"),
+            "*.c");
+
+        fileChooser->launchAsync(juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
+            [this](const juce::FileChooser& fc) {
+                auto file = fc.getResult();
+                if (file != juce::File()) {
+                    audioProcessor.getEngine().generateAlgorithmCCode(file.getFullPathName().toStdString(), file.getFileNameWithoutExtension().toStdString());
+                }
+            });
+    };
+    addAndMakeVisible(generateCCodeButton);
 
     // Presets Box
     presetBox.addItemList(juce::StringArray{"Custom / Loaded IR", "Smooth Hall", "Bright Plate", "Cyber Space", "80s Gated Snare", "Ducked Ambient"}, 1);
@@ -126,7 +146,7 @@ CyberWaveReverbAudioProcessorEditor::CyberWaveReverbAudioProcessorEditor (CyberW
     advancedToggleAttach = std::make_unique<ButtonAttachment>(audioProcessor.apvts, "advancedMode", advancedToggleButton);
 
     setSize (780, 260);
-    startTimerHz(60); // 60 FPS animation timer
+    startTimerHz(60);
 }
 
 CyberWaveReverbAudioProcessorEditor::~CyberWaveReverbAudioProcessorEditor()
@@ -195,11 +215,13 @@ void CyberWaveReverbAudioProcessorEditor::paint (juce::Graphics& g)
     // Title & Subtitle
     g.setColour(juce::Colour(0xfff8fafc));
     g.setFont(juce::FontOptions(22.0f, juce::Font::bold));
-    g.drawText("CYBERWAVE REVERB", 40, 24, 380, 28, juce::Justification::left);
+    g.drawText("CYBERWAVE REVERB", 40, 22, 380, 26, juce::Justification::left);
 
-    g.setColour(juce::Colour(0xff38bdf8));
-    g.setFont(juce::FontOptions(12.0f, juce::Font::plain));
-    g.drawText("IR-Synthesized Algorithmic FDN Engine", 40, 50, 380, 20, juce::Justification::left);
+    // Display Synthesized Algorithm Topology Name
+    juce::String topoStr = "Synthesized Topology: " + audioProcessor.getEngine().getTopologyName();
+    g.setColour(juce::Colour(0xff10b981)); // Emerald Green
+    g.setFont(juce::FontOptions(12.0f, juce::Font::bold));
+    g.drawText(topoStr, 40, 48, 420, 20, juce::Justification::left);
 
     // Drag and Drop Zone Card
     g.setColour(juce::Colour(0x1a0284c7));
@@ -212,7 +234,7 @@ void CyberWaveReverbAudioProcessorEditor::paint (juce::Graphics& g)
     g.drawText("DROP IR .WAV FILE HERE", bounds.getWidth() - 280.0f, 30.0f, 240.0f, 16.0f, juce::Justification::centred);
     g.setFont(juce::FontOptions(10.0f, juce::Font::plain));
     g.setColour(juce::Colour(0xff94a3b8));
-    g.drawText("Auto-Fits Slim Hardware Profile", bounds.getWidth() - 280.0f, 48.0f, 240.0f, 16.0f, juce::Justification::centred);
+    g.drawText("Synthesizes Unique DSP Algorithm", bounds.getWidth() - 280.0f, 48.0f, 240.0f, 16.0f, juce::Justification::centred);
 }
 
 void CyberWaveReverbAudioProcessorEditor::resized()
@@ -235,7 +257,9 @@ void CyberWaveReverbAudioProcessorEditor::resized()
     presetBox.setBounds(380, startY + 22, 150, 30);
 
     advancedToggleButton.setBounds(545, startY + 22, 205, 30);
-    exportProfileButton.setBounds(380, startY + 62, 370, 30);
+
+    exportProfileButton.setBounds(380, startY + 62, 180, 30);
+    generateCCodeButton.setBounds(570, startY + 62, 180, 30);
 
     // Advanced Tweaker Controls Visibility & Layout
     bool showAdv = isAdvancedMode;

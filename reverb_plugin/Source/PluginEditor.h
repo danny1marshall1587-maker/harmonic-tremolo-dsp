@@ -96,6 +96,7 @@ private:
 
     juce::TextButton advancedToggleButton;
     juce::TextButton exportProfileButton;
+    juce::TextButton generateCCodeButton;
 
     // Presets
     juce::ComboBox presetBox;
