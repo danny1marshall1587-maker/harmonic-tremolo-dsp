@@ -72,6 +72,9 @@ public:
     float getStereoPhaseOffset() const { return mStereoPhaseOffsetDeg; }
     LFOWaveform getWaveform() const { return mWaveform; }
     float getMix() const { return mMix; }
+    float getCurrentLFOPhaseL() const { return static_cast<float>(mLFOPhaseL); }
+    float getCurrentLFOPhaseR() const { return static_cast<float>(mLFOPhaseR); }
+
 
     /**
      * @brief Process a single stereo sample frame (Embedded and AU friendly)

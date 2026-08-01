@@ -35,6 +35,8 @@ public:
     void setStateInformation(const void* data, int sizeInBytes) override;
 
     juce::AudioProcessorValueTreeState apvts;
+    AudioDSP::HarmonicTremoloEngine& getEngine() { return dspEngine; }
+
 
 private:
     juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();

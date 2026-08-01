@@ -30,6 +30,8 @@ target_sources(HarmonicTremolo
     PRIVATE
         Source/PluginProcessor.cpp
         Source/PluginProcessor.h
+        Source/PluginEditor.cpp
+        Source/PluginEditor.h
         ${CMAKE_CURRENT_SOURCE_DIR}/../include/HarmonicTremoloEngine.hpp
 )
 

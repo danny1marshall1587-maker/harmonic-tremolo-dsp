@@ -84,7 +84,7 @@ void HarmonicTremoloAudioProcessor::processBlock(juce::AudioBuffer<float>& buffe
 }
 
 juce::AudioProcessorEditor* HarmonicTremoloAudioProcessor::createEditor() {
-    return new juce::GenericAudioProcessorEditor(*this);
+    return new HarmonicTremoloAudioProcessorEditor(*this);
 }
 
 void HarmonicTremoloAudioProcessor::getStateInformation(juce::MemoryBlock& destData) {
