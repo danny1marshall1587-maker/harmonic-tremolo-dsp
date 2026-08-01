@@ -1,5 +1,7 @@
 #include "../include/HarmonicTremoloEngine.hpp"
 #include "../embedded/mooer_harmonic_tremolo.h"
+#include "../include/IRApproxReverbEngine.hpp"
+#include "../embedded/mooer_ir_reverb.h"
 #include <iostream>
 #include <vector>
 #include <cassert>
@@ -7,10 +9,10 @@
 
 int main() {
     std::cout << "========================================================\n";
-    std::cout << " Running Harmonic Tremolo DSP Engine & Embedded Tests...\n";
+    std::cout << " Running Tremolo & Reverb DSP Engine Tests...\n";
     std::cout << "========================================================\n\n";
 
-    // 1. Test C++ Engine Initialization and Prepare
+    // 1. Test Tremolo C++ Engine Initialization and Prepare
     AudioDSP::HarmonicTremoloEngine cppEngine;
     cppEngine.prepare(48000.0);
     cppEngine.setRate(4.0f);
@@ -19,9 +21,9 @@ int main() {
     cppEngine.setWarmth(0.5f);
     cppEngine.setStereoPhaseOffset(90.0f);
 
-    std::cout << "[PASS] C++ DSP Engine initialized successfully.\n";
+    std::cout << "[PASS] Tremolo C++ DSP Engine initialized successfully.\n";
 
-    // 2. Test Processing Audio Buffer without NaNs or Infinities
+    // 2. Test Processing Tremolo Audio Buffer
     constexpr int blockSize = 512;
     std::vector<float> inL(blockSize, 0.5f);
     std::vector<float> inR(blockSize, -0.5f);
@@ -39,9 +41,9 @@ int main() {
         }
     }
 
-    std::cout << "[PASS] C++ DSP Block Process executed 5,120 samples cleanly without NaNs/Infs.\n";
+    std::cout << "[PASS] Tremolo C++ DSP Block Process executed 5,120 samples cleanly.\n";
 
-    // 3. Test Embedded C Implementation
+    // 3. Test Embedded C Tremolo
     MooerHarmonicTremolo cHandle;
     MooerHarmonicTremolo_Init(&cHandle, 48000.0f);
     cHandle.rateHz = 5.0f;
@@ -56,8 +58,51 @@ int main() {
         assert(!std::isnan(cBuffer[i]) && !std::isinf(cBuffer[i]));
     }
 
-    std::cout << "[PASS] Embedded C DSP Process executed 1,024 samples cleanly without NaNs/Infs.\n";
-    std::cout << "\nAll DSP math tests completed successfully!\n";
+    std::cout << "[PASS] Embedded C Tremolo Process executed 1,024 samples cleanly.\n";
+
+    // 4. Test Reverb C++ Engine & IR Analyzer
+    AudioDSP::IRApproxReverbEngine reverbEngine;
+    reverbEngine.prepare(48000.0);
+    reverbEngine.setDwell(0.80f);
+    reverbEngine.setTone(0.70f);
+    reverbEngine.setMix(0.50f);
+    reverbEngine.setDuckingAmount(0.60f);
+    reverbEngine.setGateEnabled(true);
+
+    // Mock IR Buffer (decaying noise burst)
+    std::vector<float> mockIr(48000, 0.0f);
+    for (size_t i = 0; i < mockIr.size(); ++i) {
+        mockIr[i] = std::exp(-static_cast<float>(i) / 4800.0f) * ((i % 2 == 0) ? 0.5f : -0.5f);
+    }
+    reverbEngine.analyzeImpulseResponse(mockIr.data(), static_cast<int>(mockIr.size()), 48000.0);
+
+    for (int b = 0; b < 10; ++b) {
+        reverbEngine.processBlock(inPointers, outPointers, 2, blockSize);
+        for (int i = 0; i < blockSize; ++i) {
+            assert(!std::isnan(outL[i]) && !std::isinf(outL[i]));
+            assert(!std::isnan(outR[i]) && !std::isinf(outR[i]));
+        }
+    }
+
+    std::cout << "[PASS] Reverb C++ Engine & IR Analyzer executed 5,120 samples cleanly.\n";
+
+    // 5. Test Embedded C Reverb
+    MooerIRReverb cReverbHandle;
+    MooerIRReverb_Init(&cReverbHandle, 48000.0f);
+    cReverbHandle.dwell = 0.85f;
+    cReverbHandle.tone = 0.75f;
+    cReverbHandle.mix = 0.50f;
+
+    std::vector<float> cReverbBuffer(1024, 0.5f);
+    MooerIRReverb_ProcessBuffer(&cReverbHandle, cReverbBuffer.data(), static_cast<int>(cReverbBuffer.size()));
+
+    for (size_t i = 0; i < cReverbBuffer.size(); ++i) {
+        assert(!std::isnan(cReverbBuffer[i]) && !std::isinf(cReverbBuffer[i]));
+    }
+
+    std::cout << "[PASS] Embedded C Reverb executed 1,024 samples cleanly.\n";
+    std::cout << "\nAll Tremolo & Reverb DSP tests completed successfully!\n";
 
     return 0;
 }
+
