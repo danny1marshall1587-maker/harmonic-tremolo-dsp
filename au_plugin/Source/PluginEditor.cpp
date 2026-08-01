@@ -100,7 +100,7 @@ void HarmonicTremoloAudioProcessorEditor::paint (juce::Graphics& g)
     // Title & Subtitle
     g.setColour(juce::Colour(0xfff8fafc));
     g.setFont(juce::Font(22.0f, juce::Font::Bold));
-    g.drawText("TRI-VERB HARMONIC TREMOLO", 40, 24, 400, 28, juce::Justification::left);
+    g.drawText("HARMONIC WOBBLE TREM", 40, 24, 400, 28, juce::Justification::left);
 
     g.setColour(juce::Colour(0xff38bdf8));
     g.setFont(juce::Font(12.0f, juce::Font::Plain));

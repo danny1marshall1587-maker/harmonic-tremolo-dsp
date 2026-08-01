@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.15)
-project(HarmonicTremolo VERSION 1.0.0 LANGUAGES C CXX)
+project(HarmonicWobbleTrem VERSION 1.0.1 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -12,7 +12,7 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(JUCE)
 
-juce_add_plugin(HarmonicTremolo
+juce_add_plugin(HarmonicWobbleTrem
     COMPANY_NAME "OpenDSP"
     IS_SYNTH FALSE
     NEEDS_MIDI_INPUT FALSE
@@ -21,12 +21,12 @@ juce_add_plugin(HarmonicTremolo
     EDITOR_WANTS_KEYBOARD_FOCUS FALSE
     COPY_PLUGIN_AFTER_BUILD FALSE
     PLUGIN_MANUFACTURER_CODE OpDSP
-    PLUGIN_CODE Htrm
+    PLUGIN_CODE Hwtr
     FORMATS AU VST3 Standalone
-    PRODUCT_NAME "Tri-Verb Harmonic Tremolo"
+    PRODUCT_NAME "Harmonic Wobble Trem"
 )
 
-target_sources(HarmonicTremolo
+target_sources(HarmonicWobbleTrem
     PRIVATE
         Source/PluginProcessor.cpp
         Source/PluginProcessor.h
@@ -35,19 +35,19 @@ target_sources(HarmonicTremolo
         ${CMAKE_CURRENT_SOURCE_DIR}/../include/HarmonicTremoloEngine.hpp
 )
 
-target_include_directories(HarmonicTremolo
+target_include_directories(HarmonicWobbleTrem
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/../include
 )
 
-target_compile_definitions(HarmonicTremolo
+target_compile_definitions(HarmonicWobbleTrem
     PUBLIC
         JUCE_WEB_BROWSER=0
         JUCE_USE_CURL=0
         JUCE_VST3_CAN_REPLACE_VST2=0
 )
 
-target_link_libraries(HarmonicTremolo
+target_link_libraries(HarmonicWobbleTrem
     PRIVATE
         juce::juce_audio_utils
     PUBLIC
