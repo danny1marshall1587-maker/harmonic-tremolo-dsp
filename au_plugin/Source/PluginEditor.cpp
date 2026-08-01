@@ -13,7 +13,7 @@ HarmonicTremoloAudioProcessorEditor::HarmonicTremoloAudioProcessorEditor (Harmon
 
         label.setText(text, juce::dontSendNotification);
         label.setJustificationType(juce::Justification::centred);
-        label.setFont(juce::Font(12.0f, juce::Font::Bold));
+        label.setFont(juce::Font(12.0f, juce::Font::bold));
         label.setColour(juce::Label::textColourId, juce::Colour(0xff94a3b8));
         addAndMakeVisible(label);
     };
@@ -31,7 +31,7 @@ HarmonicTremoloAudioProcessorEditor::HarmonicTremoloAudioProcessorEditor (Harmon
 
     waveformLabel.setText("LFO WAVEFORM", juce::dontSendNotification);
     waveformLabel.setJustificationType(juce::Justification::centred);
-    waveformLabel.setFont(juce::Font(12.0f, juce::Font::Bold));
+    waveformLabel.setFont(juce::Font(12.0f, juce::Font::bold));
     waveformLabel.setColour(juce::Label::textColourId, juce::Colour(0xff94a3b8));
     addAndMakeVisible(waveformLabel);
 
@@ -71,7 +71,7 @@ void HarmonicTremoloAudioProcessorEditor::paint (juce::Graphics& g)
     float centreY = bounds.getCentreY();
 
     // Fetch current rate and depth for animation pulse intensity
-    float depth = depthSlider.getValue();
+    float depth = static_cast<float>(depthSlider.getValue());
     float lfoValLow = std::sin(2.0f * juce::MathConstants<float>::pi * currentLFOPhase);
     float lfoValHigh = -lfoValLow; // 180 deg out of phase
 
@@ -99,11 +99,11 @@ void HarmonicTremoloAudioProcessorEditor::paint (juce::Graphics& g)
 
     // Title & Subtitle
     g.setColour(juce::Colour(0xfff8fafc));
-    g.setFont(juce::Font(22.0f, juce::Font::Bold));
+    g.setFont(juce::Font(22.0f, juce::Font::bold));
     g.drawText("HARMONIC WOBBLE TREM", 40, 24, 400, 28, juce::Justification::left);
 
     g.setColour(juce::Colour(0xff38bdf8));
-    g.setFont(juce::Font(12.0f, juce::Font::Plain));
+    g.setFont(juce::Font(12.0f, juce::Font::plain));
     g.drawText("OpenDSP Dual Anti-Phase Crossover Engine", 40, 50, 400, 20, juce::Justification::left);
 
     // Dynamic Tempo Visualizer Ribbon
