@@ -1,67 +1,55 @@
 #ifndef IR_APPROX_REVERB_ENGINE_HPP
 #define IR_APPROX_REVERB_ENGINE_HPP
 
-#include <cmath>
 #include <vector>
-#include <algorithm>
 #include <array>
-#include <cstring>
+#include <cmath>
+#include <algorithm>
+#include <stdbool.h>
+#include <cstdint>
+
+#ifndef PI_FLT
+#define PI_FLT 3.14159265358979323846f
+#endif
 
 namespace AudioDSP {
 
-constexpr double PI_DBL = 3.14159265358979323846;
-constexpr float PI_FLT = 3.14159265358979323846f;
-
-/**
- * @brief High-Performance IR-Synthesized & Algorithmic Reverb Engine
- * 
- * Features:
- *  - Early Reflection Generator: 4-tap stereo delay line with individual gains.
- *  - Late Reverb FDN: 4-channel Householder orthogonal matrix Feedback Delay Network.
- *  - Damping & Filters: High-Pass Filter (HPF) & Low-Pass Filter (LPF) absorption.
- *  - Dynamic Ducking: Attenuates wet reverb when active playing is detected, blooming on pauses.
- *  - Gated Reverb: Envelope follower with Threshold, Attack, Hold, Release, and Tail Floor.
- *  - IR Analyzer: Schroeder Backward Integration to calculate RT60 & early reflections from WAV buffers.
- *  - Realtime Safe: Zero heap allocations during audio processing.
- */
 class IRApproxReverbEngine {
 public:
     IRApproxReverbEngine() = default;
     ~IRApproxReverbEngine() = default;
 
-    /**
-     * @brief Initialize DSP buffers for sample rate
-     */
     void prepare(double sampleRate) {
-        mSampleRate = sampleRate > 0.0 ? sampleRate : 44100.0;
+        mSampleRate = (sampleRate > 0.0) ? sampleRate : 44100.0;
 
-        // FDN Prime Delay Lengths (in milliseconds: ~29ms, ~37ms, ~43ms, ~53ms)
-        mFdnDelaySamples[0] = static_cast<int>(mSampleRate * 0.0297);
-        mFdnDelaySamples[1] = static_cast<int>(mSampleRate * 0.0371);
-        mFdnDelaySamples[2] = static_cast<int>(mSampleRate * 0.0439);
-        mFdnDelaySamples[3] = static_cast<int>(mSampleRate * 0.0533);
+        // FDN delay line lengths (~29ms, ~37ms, ~43ms, ~53ms)
+        const float primeDelaysMs[4] = { 29.7f, 37.1f, 43.9f, 53.3f };
 
-        // Resize max buffers (2 seconds max per line)
-        int maxDelay = static_cast<int>(mSampleRate * 2.0);
         for (int i = 0; i < 4; ++i) {
-            mFdnBufferL[i].assign(maxDelay, 0.0f);
-            mFdnBufferR[i].assign(maxDelay, 0.0f);
+            int delaySamples = static_cast<int>(mSampleRate * (primeDelaysMs[i] / 1000.0f));
+            mFdnDelaySamples[i] = delaySamples;
+            int bufferSize = std::max(delaySamples + 100, static_cast<int>(mSampleRate * 0.2));
+
+            mFdnBufferL[i].assign(bufferSize, 0.0f);
+            mFdnBufferR[i].assign(bufferSize, 0.0f);
             mFdnWriteIdxL[i] = 0;
             mFdnWriteIdxR[i] = 0;
+
+            mLpfStateL[i] = 0.0f;
+            mLpfStateR[i] = 0.0f;
+            mHpfStateL[i] = 0.0f;
+            mHpfStateR[i] = 0.0f;
         }
 
-        // Early reflection max delay (100ms)
-        int maxErDelay = static_cast<int>(mSampleRate * 0.1);
-        mErBufferL.assign(maxErDelay, 0.0f);
-        mErBufferR.assign(maxErDelay, 0.0f);
+        // Early Reflections Buffer (100ms max)
+        int erSize = static_cast<int>(mSampleRate * 0.1);
+        mErBufferL.assign(erSize, 0.0f);
+        mErBufferR.assign(erSize, 0.0f);
         mErWriteIdx = 0;
 
         reset();
     }
 
-    /**
-     * @brief Clear internal buffer states
-     */
     void reset() {
         for (int i = 0; i < 4; ++i) {
             std::fill(mFdnBufferL[i].begin(), mFdnBufferL[i].end(), 0.0f);
@@ -73,40 +61,35 @@ public:
             mHpfStateL[i] = 0.0f;
             mHpfStateR[i] = 0.0f;
         }
+
         std::fill(mErBufferL.begin(), mErBufferL.end(), 0.0f);
         std::fill(mErBufferR.begin(), mErBufferR.end(), 0.0f);
         mErWriteIdx = 0;
 
         mDuckingEnv = 0.0f;
-        mGateEnv = 0.0f;
+        mGateEnv = 1.0f;
         mGateHoldCounter = 0;
         mGateIsOpen = false;
     }
 
-    // --- Parameter Setters ---
-    void setDwell(float dwell) { mDwell = std::clamp(dwell, 0.1f, 0.98f); }
-    void setTone(float tone) { 
-        mTone = std::clamp(tone, 0.0f, 1.0f);
-        // Tone controls LPF cutoff between 1.5kHz and 18kHz
-        mLpfCutoffHz = 1500.0f + mTone * 16500.0f;
-    }
+    // Setters
+    void setDwell(float dwell) { mDwell = std::clamp(dwell, 0.10f, 0.98f); }
+    void setTone(float tone) { mTone = std::clamp(tone, 0.0f, 1.0f); }
     void setMix(float mix) { mMix = std::clamp(mix, 0.0f, 1.0f); }
     void setPreDelayMs(float ms) { mPreDelayMs = std::clamp(ms, 0.0f, 100.0f); }
     void setErLevel(float level) { mErLevel = std::clamp(level, 0.0f, 1.0f); }
     void setHpfCutoffHz(float hz) { mHpfCutoffHz = std::clamp(hz, 20.0f, 1000.0f); }
     void setLpfCutoffHz(float hz) { mLpfCutoffHz = std::clamp(hz, 1000.0f, 20000.0f); }
 
-    // Ducking parameters
-    void setDuckingAmount(float amount) { mDuckingAmount = std::clamp(amount, 0.0f, 1.0f); }
+    void setDuckingAmount(float amt) { mDuckingAmount = std::clamp(amt, 0.0f, 1.0f); }
     void setDuckingReleaseMs(float ms) { mDuckingReleaseMs = std::clamp(ms, 10.0f, 1000.0f); }
 
-    // Gate parameters
     void setGateEnabled(bool enabled) { mGateEnabled = enabled; }
     void setGateThresholdDb(float db) { mGateThresholdDb = std::clamp(db, -60.0f, 0.0f); }
     void setGateHoldMs(float ms) { mGateHoldMs = std::clamp(ms, 0.0f, 500.0f); }
     void setGateReleaseMs(float ms) { mGateReleaseMs = std::clamp(ms, 10.0f, 1000.0f); }
 
-    // --- Parameter Getters ---
+    // Getters
     float getDwell() const { return mDwell; }
     float getTone() const { return mTone; }
     float getMix() const { return mMix; }
@@ -114,29 +97,22 @@ public:
     float getErLevel() const { return mErLevel; }
     float getHpfCutoffHz() const { return mHpfCutoffHz; }
     float getLpfCutoffHz() const { return mLpfCutoffHz; }
-    float getDuckingAmount() const { return mDuckingAmount; }
-    float getGateThresholdDb() const { return mGateThresholdDb; }
-    bool isGateEnabled() const { return mGateEnabled; }
 
-    /**
-     * @brief Process a single stereo sample frame
-     */
-    inline void processSample(float inL, float inR, float& outL, float& outR) {
+    void processSample(float inL, float inR, float& outL, float& outR) {
         float inputMono = 0.5f * (inL + inR);
 
-        // --- 1. Pre-Delay & Early Reflection Taps ---
+        // --- 1. Pre-Delay & Early Reflections ---
         int preDelaySamples = static_cast<int>(mSampleRate * (mPreDelayMs / 1000.0f));
         int erSize = static_cast<int>(mErBufferL.size());
-        
-        mErBufferL[mErWriteIdx] = inL;
-        mErBufferR[mErWriteIdx] = inR;
+
+        mErBufferL[mErWriteIdx] = inputMono;
+        mErBufferR[mErWriteIdx] = inputMono;
 
         // 4 Early Reflection Taps
-        float erL = 0.0f;
-        float erR = 0.0f;
-        constexpr float erTapsMs[4] = { 12.0f, 19.0f, 27.0f, 38.0f };
-        constexpr float erGains[4]  = { 0.7f,  0.5f,  0.35f, 0.2f };
+        const float erTapsMs[4] = { 7.0f, 14.0f, 23.0f, 35.0f };
+        const float erGains[4] = { 0.7f, 0.5f, 0.35f, 0.2f };
 
+        float erL = 0.0f, erR = 0.0f;
         for (int t = 0; t < 4; ++t) {
             int tapDelay = preDelaySamples + static_cast<int>(mSampleRate * (erTapsMs[t] / 1000.0f));
             int readIdx = (mErWriteIdx - tapDelay + erSize) % erSize;
@@ -147,7 +123,6 @@ public:
         mErWriteIdx = (mErWriteIdx + 1) % erSize;
 
         // --- 2. Late Reverb Feedback Delay Network (FDN) ---
-        // Read current FDN delay line outputs
         float fdnOutL[4], fdnOutR[4];
         for (int i = 0; i < 4; ++i) {
             int maxLen = static_cast<int>(mFdnBufferL[i].size());
@@ -158,7 +133,7 @@ public:
             fdnOutR[i] = mFdnBufferR[i][readIdxR];
         }
 
-        // Apply 4x4 Householder Unitary Matrix Diffusion: y_i = x_i - 0.5 * sum(x)
+        // Apply 4x4 Householder Unitary Matrix Diffusion
         float sumL = fdnOutL[0] + fdnOutL[1] + fdnOutL[2] + fdnOutL[3];
         float sumR = fdnOutR[0] + fdnOutR[1] + fdnOutR[2] + fdnOutR[3];
 
@@ -169,22 +144,20 @@ public:
         }
 
         // 1-Pole HPF & LPF Damping Filters inside feedback loop
-        float lpfCoeff = 1.0f - std::exp(-2.0f * PI_FLT * mLpfCutoffHz / static_cast<float>(mSampleRate));
+        float lpfCutoff = 1000.0f + mTone * 18000.0f; // Linked with Tone
+        float lpfCoeff = 1.0f - std::exp(-2.0f * PI_FLT * lpfCutoff / static_cast<float>(mSampleRate));
         float hpfCoeff = std::exp(-2.0f * PI_FLT * mHpfCutoffHz / static_cast<float>(mSampleRate));
 
         for (int i = 0; i < 4; ++i) {
-            // LPF
             mLpfStateL[i] += lpfCoeff * (diffL[i] - mLpfStateL[i]);
             mLpfStateR[i] += lpfCoeff * (diffR[i] - mLpfStateR[i]);
 
-            // HPF
             mHpfStateL[i] = hpfCoeff * (mHpfStateL[i] + mLpfStateL[i] - diffL[i]);
             mHpfStateR[i] = hpfCoeff * (mHpfStateR[i] + mLpfStateR[i] - diffR[i]);
 
             float dampedL = mLpfStateL[i] - mHpfStateL[i];
             float dampedR = mLpfStateR[i] - mHpfStateR[i];
 
-            // Feedback write back to buffers
             int maxLen = static_cast<int>(mFdnBufferL[i].size());
             mFdnBufferL[i][mFdnWriteIdxL[i]] = inputMono + dampedL * mDwell;
             mFdnBufferR[i][mFdnWriteIdxR[i]] = inputMono + dampedR * mDwell;
@@ -193,11 +166,9 @@ public:
             mFdnWriteIdxR[i] = (mFdnWriteIdxR[i] + 1) % maxLen;
         }
 
-        // Sum FDN outputs
         float lateL = (fdnOutL[0] + fdnOutL[2]) * 0.5f;
         float lateR = (fdnOutR[1] + fdnOutR[3]) * 0.5f;
 
-        // Combine Early Reflections + Late Reverb
         float wetL = (erL * mErLevel) + lateL;
         float wetR = (erR * mErLevel) + lateR;
 
@@ -249,9 +220,6 @@ public:
         outR = inR * (1.0f - mMix) + wetR * mMix;
     }
 
-    /**
-     * @brief Process block for DAW audio buffers
-     */
     void processBlock(const float* const* inputChannels, float* const* outputChannels, int numChannels, int numSamples) {
         if (numChannels == 0 || numSamples == 0) return;
 
@@ -266,53 +234,132 @@ public:
     }
 
     /**
-     * @brief Instant Mathematical IR Waveform Analyzer (Schroeder Backward Integration)
-     * Reads a raw IR .wav buffer and automatically extracts T60 decay, Dwell, and Tone settings.
+     * @brief Advanced Acoustic IR Waveform Analyzer
+     * Performs a 7-point Schroeder Backward Integration & Spectral Decay Analysis
+     * to extract Pre-Delay, RT60 Decay Time, Dwell Feedback, High Damping (LPF),
+     * Low Cut (HPF), and Early Reflection balance from any loaded .wav IR file.
      */
     void analyzeImpulseResponse(const float* irBuffer, int numSamples, double irSampleRate) {
-        if (!irBuffer || numSamples <= 0) return;
+        if (!irBuffer || numSamples <= 0 || irSampleRate <= 0.0) return;
 
-        // Calculate Energy Decay Curve (EDC) using Schroeder Integration
-        std::vector<double> energy(numSamples, 0.0);
-        double totalEnergy = 0.0;
-
-        for (int i = numSamples - 1; i >= 0; --i) {
-            totalEnergy += static_cast<double>(irBuffer[i]) * static_cast<double>(irBuffer[i]);
-            energy[i] = totalEnergy;
+        // 1. Peak Amplitude & Pre-Delay Onset Detection
+        float maxAbs = 0.0f;
+        for (int i = 0; i < numSamples; ++i) {
+            maxAbs = std::max(maxAbs, std::abs(irBuffer[i]));
         }
 
-        if (totalEnergy <= 1e-12) return;
+        if (maxAbs <= 1e-6f) return;
 
-        // Find T60 (-60dB energy drop)
-        double initialEnergy = energy[0];
-        double targetEnergy = initialEnergy * 0.000001; // -60 dB
-
-        int t60SampleIdx = numSamples - 1;
+        int onsetSampleIdx = 0;
+        float onsetThreshold = maxAbs * 0.05f; // 5% of peak
         for (int i = 0; i < numSamples; ++i) {
-            if (energy[i] <= targetEnergy) {
-                t60SampleIdx = i;
+            if (std::abs(irBuffer[i]) >= onsetThreshold) {
+                onsetSampleIdx = i;
                 break;
             }
         }
 
-        double t60Seconds = static_cast<double>(t60SampleIdx) / irSampleRate;
-        t60Seconds = std::clamp(t60Seconds, 0.2, 5.0);
+        float detectedPreDelayMs = static_cast<float>((static_cast<double>(onsetSampleIdx) / irSampleRate) * 1000.0);
+        detectedPreDelayMs = std::clamp(detectedPreDelayMs, 0.0f, 100.0f);
+        setPreDelayMs(detectedPreDelayMs);
 
-        // Map T60 seconds to Dwell feedback (0.3 to 0.96)
-        float calculatedDwell = static_cast<float>(0.30 + 0.66 * (t60Seconds / 5.0));
+        // 2. Schroeder Backward Integration for Energy Decay Curve (EDC)
+        std::vector<double> edc(numSamples, 0.0);
+        double runningEnergy = 0.0;
+
+        for (int i = numSamples - 1; i >= onsetSampleIdx; --i) {
+            runningEnergy += static_cast<double>(irBuffer[i]) * static_cast<double>(irBuffer[i]);
+            edc[i] = runningEnergy;
+        }
+
+        double initialEnergy = edc[onsetSampleIdx];
+        if (initialEnergy <= 1e-12) return;
+
+        // 3. T20/T30 Decay Regression for Physics RT60 Time
+        int idxStart = onsetSampleIdx;
+        int idxEnd = numSamples - 1;
+
+        for (int i = onsetSampleIdx; i < numSamples; ++i) {
+            double db = 10.0 * std::log10((edc[i] / initialEnergy) + 1e-12);
+            if (db <= -5.0 && idxStart == onsetSampleIdx) {
+                idxStart = i;
+            }
+            if (db <= -35.0) {
+                idxEnd = i;
+                break;
+            }
+        }
+
+        double decayDurationSec = static_cast<double>(idxEnd - idxStart) / irSampleRate;
+        double rt60Seconds = 2.0;
+
+        if (decayDurationSec > 0.005 && idxEnd > idxStart) {
+            double slopeDbPerSec = 30.0 / decayDurationSec;
+            rt60Seconds = 60.0 / slopeDbPerSec;
+        } else {
+            rt60Seconds = static_cast<double>(numSamples - onsetSampleIdx) / irSampleRate;
+        }
+
+        rt60Seconds = std::clamp(rt60Seconds, 0.15, 6.0);
+
+        // Map RT60 to Dwell feedback (0.15 to 0.97)
+        float calculatedDwell = static_cast<float>(std::pow(10.0, -3.0 * 0.040 / rt60Seconds));
+        calculatedDwell = std::clamp(calculatedDwell, 0.15f, 0.97f);
         setDwell(calculatedDwell);
 
-        // Estimate High-Frequency Damping (Tone) from early vs late spectral ratio
-        double earlySum = 0.0;
-        double lateSum = 0.0;
-        int halfIdx = std::min(numSamples / 2, static_cast<int>(irSampleRate * 0.1));
+        // 4. High Frequency Damping (LPF & Tone) Analysis
+        double earlyEnergyHF = 0.0;
+        double lateEnergyHF = 0.0;
+        double earlyEnergyTotal = 0.0;
+        double lateEnergyTotal = 0.0;
 
-        for (int i = 0; i < halfIdx; ++i) earlySum += std::abs(irBuffer[i]);
-        for (int i = halfIdx; i < std::min(numSamples, static_cast<int>(irSampleRate * 0.5)); ++i) lateSum += std::abs(irBuffer[i]);
+        int window80ms = static_cast<int>(irSampleRate * 0.08);
+        int earlyEndIdx = std::min(numSamples, onsetSampleIdx + window80ms);
+        int lateEndIdx = std::min(numSamples, onsetSampleIdx + static_cast<int>(irSampleRate * 0.40));
 
-        float ratio = (earlySum > 0.0) ? static_cast<float>(lateSum / earlySum) : 0.5f;
-        float calculatedTone = std::clamp(ratio * 1.2f, 0.2f, 0.95f);
+        for (int i = onsetSampleIdx; i < earlyEndIdx; ++i) {
+            double val = static_cast<double>(irBuffer[i]);
+            double diff = (i > 0) ? (val - static_cast<double>(irBuffer[i - 1])) : 0.0;
+            earlyEnergyTotal += val * val;
+            earlyEnergyHF += diff * diff;
+        }
+
+        for (int i = earlyEndIdx; i < lateEndIdx; ++i) {
+            double val = static_cast<double>(irBuffer[i]);
+            double diff = (i > 0) ? (val - static_cast<double>(irBuffer[i - 1])) : 0.0;
+            lateEnergyTotal += val * val;
+            lateEnergyHF += diff * diff;
+        }
+
+        double earlyHfRatio = (earlyEnergyTotal > 1e-9) ? (earlyEnergyHF / earlyEnergyTotal) : 0.5;
+        double lateHfRatio = (lateEnergyTotal > 1e-9) ? (lateEnergyHF / lateEnergyTotal) : 0.2;
+
+        double dampingFactor = (earlyHfRatio > 1e-6) ? (lateHfRatio / earlyHfRatio) : 0.5;
+        dampingFactor = std::clamp(dampingFactor, 0.1, 1.0);
+
+        float calculatedTone = static_cast<float>(0.20 + 0.78 * dampingFactor);
         setTone(calculatedTone);
+
+        float calculatedLpf = static_cast<float>(1500.0 + 16500.0 * dampingFactor);
+        setLpfCutoffHz(calculatedLpf);
+
+        // 5. Early Reflections (ER) Level Estimation
+        double earlyEnergy = 0.0;
+        double totalIrEnergy = 0.0;
+
+        for (int i = onsetSampleIdx; i < numSamples; ++i) {
+            double e = static_cast<double>(irBuffer[i]) * static_cast<double>(irBuffer[i]);
+            totalIrEnergy += e;
+            if (i < earlyEndIdx) earlyEnergy += e;
+        }
+
+        float erRatio = (totalIrEnergy > 1e-9) ? static_cast<float>(earlyEnergy / totalIrEnergy) : 0.4f;
+        float calculatedErLevel = std::clamp(erRatio * 1.5f, 0.15f, 0.90f);
+        setErLevel(calculatedErLevel);
+
+        // 6. Sub-bass High Pass Filter (HPF) Cutoff
+        float calculatedHpf = (rt60Seconds > 3.0) ? 40.0f : ((rt60Seconds > 1.5) ? 75.0f : 120.0f);
+        setHpfCutoffHz(calculatedHpf);
     }
 
 private:

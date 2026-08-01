@@ -101,18 +101,35 @@ void CyberWaveReverbAudioProcessor::loadAndAnalyzeIRFile(const juce::File& file)
     std::unique_ptr<juce::AudioFormatReader> reader(formatManager.createReaderFor(file));
     if (reader != nullptr) {
         int numSamples = static_cast<int>(reader->lengthInSamples);
-        if (numSamples > 0 && numSamples < 44100 * 10) { // Cap at 10 seconds
-            juce::AudioBuffer<float> irBuf(1, numSamples);
+        if (numSamples > 0 && numSamples < static_cast<int>(reader->sampleRate * 12)) { // Cap at 12 seconds
+            int numChans = reader->numChannels;
+            juce::AudioBuffer<float> irBuf(numChans, numSamples);
             reader->read(&irBuf, 0, numSamples, 0, true, false);
 
-            mEngine.analyzeImpulseResponse(irBuf.getReadPointer(0), numSamples, reader->sampleRate);
+            // Create mono sum buffer for full acoustic analysis
+            std::vector<float> monoSum(numSamples, 0.0f);
+            for (int ch = 0; ch < numChans; ++ch) {
+                const float* ptr = irBuf.getReadPointer(ch);
+                for (int i = 0; i < numSamples; ++i) {
+                    monoSum[i] += ptr[i] / static_cast<float>(numChans);
+                }
+            }
 
-            // Update APVTS parameters so sliders refresh visually
-            if (auto* dwellParam = apvts.getParameter("dwell"))
-                dwellParam->setValueNotifyingHost(dwellParam->convertTo0to1(mEngine.getDwell()));
+            mEngine.analyzeImpulseResponse(monoSum.data(), numSamples, reader->sampleRate);
 
-            if (auto* toneParam = apvts.getParameter("tone"))
-                toneParam->setValueNotifyingHost(toneParam->convertTo0to1(mEngine.getTone()));
+            // Synchronize all APVTS parameters with the analyzed IR values
+            auto updateParam = [this](const juce::String& paramId, float value) {
+                if (auto* param = apvts.getParameter(paramId)) {
+                    param->setValueNotifyingHost(param->convertTo0to1(value));
+                }
+            };
+
+            updateParam("dwell", mEngine.getDwell());
+            updateParam("tone", mEngine.getTone());
+            updateParam("preDelay", mEngine.getPreDelayMs());
+            updateParam("erLevel", mEngine.getErLevel());
+            updateParam("hpf", mEngine.getHpfCutoffHz());
+            updateParam("lpf", mEngine.getLpfCutoffHz());
         }
     }
 }
