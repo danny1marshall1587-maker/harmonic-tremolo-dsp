@@ -1,0 +1,27 @@
+# Build directories
+build/
+build-*/
+*.o
+*.obj
+*.dylib
+*.so
+*.dll
+*.component
+*.vst3
+
+# IDE / OS
+.DS_Store
+.vscode/
+.idea/
+*.user
+*.suo
+
+# CMake artifacts
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+_deps/
+test_runner
+tests/test_runner
+

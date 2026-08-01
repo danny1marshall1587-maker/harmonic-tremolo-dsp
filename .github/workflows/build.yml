@@ -1,0 +1,63 @@
+name: Build AU and VST3 Audio Plugins
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS (Intel x86_64 / Universal)
+            os: macos-13 # Intel macos runner
+            cmake_flags: "-DCMAKE_OSX_ARCHITECTURES='x86_64;arm64'"
+            plugin_path: "au_plugin/HarmonicTremolo_artefacts/Release"
+            artifact_name: "HarmonicTremolo-macOS"
+
+          - name: Windows (x64)
+            os: windows-latest
+            cmake_flags: ""
+            plugin_path: "au_plugin/HarmonicTremolo_artefacts/Release"
+            artifact_name: "HarmonicTremolo-Windows"
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Configure CMake
+        run: |
+          cmake -B build -DCMAKE_BUILD_TYPE=Release ${{ matrix.cmake_flags }}
+
+      - name: Build Plugins & Test Runner
+        run: |
+          cmake --build build --config Release
+
+      - name: Run Unit Tests
+        run: |
+          ctest --test-dir build -C Release --output-on-failure
+
+      - name: Upload macOS Plugin Artifacts (AU & VST3)
+        if: runner.os == 'macOS'
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: |
+            build/au_plugin/HarmonicTremolo_artefacts/Release/AU/
+            build/au_plugin/HarmonicTremolo_artefacts/Release/VST3/
+            build/au_plugin/HarmonicTremolo_artefacts/Release/Standalone/
+
+      - name: Upload Windows Plugin Artifacts (VST3 & Standalone)
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: |
+            build/au_plugin/HarmonicTremolo_artefacts/Release/VST3/
+            build/au_plugin/HarmonicTremolo_artefacts/Release/Standalone/
