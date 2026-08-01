@@ -7,15 +7,15 @@ CyberWaveReverbAudioProcessorEditor::CyberWaveReverbAudioProcessorEditor (CyberW
     juce::LookAndFeel::setDefaultLookAndFeel(&customLookAndFeel);
 
     auto setupSlider = [this](juce::Slider& slider, juce::Label& label, const juce::String& text) {
+        label.setText(text, juce::dontSendNotification);
+        label.setJustificationType(juce::Justification::centred);
+        label.setFont(juce::FontOptions(11.0f, juce::Font::bold));
+        label.setColour(juce::Label::textColourId, juce::Colour(0xff38bdf8)); // Electric Cyan Title
+        addAndMakeVisible(label);
+
         slider.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
         slider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 65, 18);
         addAndMakeVisible(slider);
-
-        label.setText(text, juce::dontSendNotification);
-        label.setJustificationType(juce::Justification::centred);
-        label.setFont(juce::FontOptions(12.0f, juce::Font::bold));
-        label.setColour(juce::Label::textColourId, juce::Colour(0xff94a3b8));
-        addAndMakeVisible(label);
     };
 
     // Easy Mode 3 Main Knobs
@@ -53,6 +53,9 @@ CyberWaveReverbAudioProcessorEditor::CyberWaveReverbAudioProcessorEditor (CyberW
 
     // Presets Box
     presetBox.addItemList(juce::StringArray{"Custom / Loaded IR", "Smooth Hall", "Bright Plate", "Cyber Space", "80s Gated Snare", "Ducked Ambient"}, 1);
+    presetBox.setColour(juce::ComboBox::backgroundColourId, juce::Colour(0xff1e293b));
+    presetBox.setColour(juce::ComboBox::textColourId, juce::Colour(0xfff8fafc));
+    presetBox.setColour(juce::ComboBox::outlineColourId, juce::Colour(0xff00f2fe));
     presetBox.setSelectedId(1);
     presetBox.onChange = [this]() {
         int id = presetBox.getSelectedId();
@@ -78,8 +81,8 @@ CyberWaveReverbAudioProcessorEditor::CyberWaveReverbAudioProcessorEditor (CyberW
 
     presetLabel.setText("PRESET MODEL", juce::dontSendNotification);
     presetLabel.setJustificationType(juce::Justification::centred);
-    presetLabel.setFont(juce::FontOptions(12.0f, juce::Font::bold));
-    presetLabel.setColour(juce::Label::textColourId, juce::Colour(0xff94a3b8));
+    presetLabel.setFont(juce::FontOptions(11.0f, juce::Font::bold));
+    presetLabel.setColour(juce::Label::textColourId, juce::Colour(0xff38bdf8));
     addAndMakeVisible(presetLabel);
 
     // Attachments
@@ -102,7 +105,7 @@ CyberWaveReverbAudioProcessorEditor::CyberWaveReverbAudioProcessorEditor (CyberW
 
     advancedToggleAttach = std::make_unique<ButtonAttachment>(audioProcessor.apvts, "advancedMode", advancedToggleButton);
 
-    setSize (760, 360);
+    setSize (780, 260);
     startTimerHz(60); // 60 FPS animation timer
 }
 
@@ -194,24 +197,24 @@ void CyberWaveReverbAudioProcessorEditor::paint (juce::Graphics& g)
 
 void CyberWaveReverbAudioProcessorEditor::resized()
 {
-    int knobW = 90;
-    int knobH = 110;
-    int startY = 105;
+    int knobW = 95;
+    int knobH = 115;
+    int startY = 100;
+
+    auto layoutControl = [knobW, knobH](juce::Label& label, juce::Slider& slider, int x, int y) {
+        label.setBounds(x, y, knobW, 18);
+        slider.setBounds(x, y + 20, knobW, knobH - 20);
+    };
 
     // Easy Mode Row 1
-    dwellSlider.setBounds(50, startY, knobW, knobH);
-    dwellLabel.setBounds(50, startY + knobH - 22, knobW, 18);
+    layoutControl(dwellLabel, dwellSlider, 50, startY);
+    layoutControl(toneLabel, toneSlider, 170, startY);
+    layoutControl(mixLabel, mixSlider, 290, startY);
 
-    toneSlider.setBounds(170, startY, knobW, knobH);
-    toneLabel.setBounds(170, startY + knobH - 22, knobW, 18);
+    presetLabel.setBounds(440, startY, 160, 18);
+    presetBox.setBounds(440, startY + 22, 160, 32);
 
-    mixSlider.setBounds(290, startY, knobW, knobH);
-    mixLabel.setBounds(290, startY + knobH - 22, knobW, 18);
-
-    presetBox.setBounds(440, startY + 25, 160, 32);
-    presetLabel.setBounds(440, startY + 5, 160, 18);
-
-    advancedToggleButton.setBounds(440, startY + 70, 260, 32);
+    advancedToggleButton.setBounds(440, startY + 68, 260, 32);
 
     // Advanced Tweaker Controls Visibility & Layout
     bool showAdv = isAdvancedMode;
@@ -230,41 +233,26 @@ void CyberWaveReverbAudioProcessorEditor::resized()
     gateReleaseSlider.setVisible(showAdv); gateReleaseLabel.setVisible(showAdv);
 
     if (showAdv) {
-        setSize(760, 600);
+        setSize(780, 600);
 
         int advY1 = startY + knobH + 25;
 
-        preDelaySlider.setBounds(50, advY1, knobW, knobH);
-        preDelayLabel.setBounds(50, advY1 + knobH - 22, knobW, 18);
+        layoutControl(preDelayLabel, preDelaySlider, 50, advY1);
+        layoutControl(erLevelLabel, erLevelSlider, 160, advY1);
+        layoutControl(hpfLabel, hpfSlider, 270, advY1);
+        layoutControl(lpfLabel, lpfSlider, 380, advY1);
 
-        erLevelSlider.setBounds(160, advY1, knobW, knobH);
-        erLevelLabel.setBounds(160, advY1 + knobH - 22, knobW, 18);
-
-        hpfSlider.setBounds(270, advY1, knobW, knobH);
-        hpfLabel.setBounds(270, advY1 + knobH - 22, knobW, 18);
-
-        lpfSlider.setBounds(380, advY1, knobW, knobH);
-        lpfLabel.setBounds(380, advY1 + knobH - 22, knobW, 18);
-
-        duckingAmountSlider.setBounds(510, advY1, knobW, knobH);
-        duckingAmountLabel.setBounds(510, advY1 + knobH - 22, knobW, 18);
-
-        duckingReleaseSlider.setBounds(620, advY1, knobW, knobH);
-        duckingReleaseLabel.setBounds(620, advY1 + knobH - 22, knobW, 18);
+        layoutControl(duckingAmountLabel, duckingAmountSlider, 510, advY1);
+        layoutControl(duckingReleaseLabel, duckingReleaseSlider, 620, advY1);
 
         int advY2 = advY1 + knobH + 20;
 
-        gateToggle.setBounds(50, advY2 + 30, 130, 24);
+        gateToggle.setBounds(50, advY2 + 40, 130, 24);
 
-        gateThresholdSlider.setBounds(190, advY2, knobW, knobH);
-        gateThresholdLabel.setBounds(190, advY2 + knobH - 22, knobW, 18);
-
-        gateHoldSlider.setBounds(300, advY2, knobW, knobH);
-        gateHoldLabel.setBounds(300, advY2 + knobH - 22, knobW, 18);
-
-        gateReleaseSlider.setBounds(410, advY2, knobW, knobH);
-        gateReleaseLabel.setBounds(410, advY2 + knobH - 22, knobW, 18);
+        layoutControl(gateThresholdLabel, gateThresholdSlider, 190, advY2);
+        layoutControl(gateHoldLabel, gateHoldSlider, 300, advY2);
+        layoutControl(gateReleaseLabel, gateReleaseSlider, 410, advY2);
     } else {
-        setSize(760, 260);
+        setSize(780, 260);
     }
 }
