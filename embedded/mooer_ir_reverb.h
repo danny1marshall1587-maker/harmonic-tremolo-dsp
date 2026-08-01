@@ -11,15 +11,18 @@ extern "C" {
 #define MOOER_REVERB_MAX_DELAY 4800 // ~100ms max FDN delay buffer size at 48kHz
 
 typedef struct {
+    char magic[8];          // "IRPROF1"
+    char profileName[24];
     float dwell;
     float tone;
     float mix;
     float preDelayMs;
+    float erLevel;
     float hpfHz;
     float lpfHz;
-    float duckingAmount;
-    bool gateEnabled;
-    float gateThresholdDb;
+    float eqLowGainDb;
+    float eqMidGainDb;
+    float eqHighGainDb;
 } MooerIRReverbPreset;
 
 typedef struct {
@@ -27,6 +30,14 @@ typedef struct {
     float dwell;
     float tone;
     float mix;
+
+    float preDelayMs;
+    float hpfHz;
+    float lpfHz;
+
+    float eqLowGainDb;
+    float eqMidGainDb;
+    float eqHighGainDb;
 
     // Smoothed values
     float smoothedDwell;
@@ -44,6 +55,9 @@ typedef struct {
 
     float lpfState[4];
     float hpfState[4];
+
+    float eqLowState;
+    float eqHighState;
 } MooerIRReverb;
 
 void MooerIRReverb_Init(MooerIRReverb* handle, float sampleRate);

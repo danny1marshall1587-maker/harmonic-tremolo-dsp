@@ -51,6 +51,26 @@ CyberWaveReverbAudioProcessorEditor::CyberWaveReverbAudioProcessorEditor (CyberW
     };
     addAndMakeVisible(advancedToggleButton);
 
+    // Export Pedal Profile (.irprof) Button
+    exportProfileButton.setButtonText("EXPORT PEDAL PROFILE (.IRPROF)");
+    exportProfileButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff0284c7));
+    exportProfileButton.setColour(juce::TextButton::textColourOffId, juce::Colour(0xffffffff));
+    exportProfileButton.onClick = [this]() {
+        fileChooser = std::make_unique<juce::FileChooser>(
+            "Save Hardware Reverb Profile for Mooer GE / NUX MG-400 / Valeton GP-150...",
+            juce::File::getSpecialLocation(juce::File::userHomeDirectory).getChildFile("reverb_model.irprof"),
+            "*.irprof");
+
+        fileChooser->launchAsync(juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
+            [this](const juce::FileChooser& fc) {
+                auto file = fc.getResult();
+                if (file != juce::File()) {
+                    audioProcessor.getEngine().exportHardwareProfile(file.getFullPathName().toStdString(), file.getFileNameWithoutExtension().toStdString());
+                }
+            });
+    };
+    addAndMakeVisible(exportProfileButton);
+
     // Presets Box
     presetBox.addItemList(juce::StringArray{"Custom / Loaded IR", "Smooth Hall", "Bright Plate", "Cyber Space", "80s Gated Snare", "Ducked Ambient"}, 1);
     presetBox.setColour(juce::ComboBox::backgroundColourId, juce::Colour(0xff1e293b));
@@ -66,14 +86,14 @@ CyberWaveReverbAudioProcessorEditor::CyberWaveReverbAudioProcessorEditor (CyberW
             dwellSlider.setValue(0.65); toneSlider.setValue(0.90); mixSlider.setValue(0.35);
             hpfSlider.setValue(120.0); lpfSlider.setValue(18000.0);
         } else if (id == 4) { // Cyber Space
-            dwellSlider.setValue(0.96); toneSlider.setValue(0.80); mixSlider.setValue(0.60);
+            dwellSlider.setValue(0.91); toneSlider.setValue(0.80); mixSlider.setValue(0.60);
             hpfSlider.setValue(40.0); lpfSlider.setValue(16000.0);
         } else if (id == 5) { // Gated Snare
             dwellSlider.setValue(0.70); toneSlider.setValue(0.85); mixSlider.setValue(0.50);
             gateToggle.setToggleState(true, juce::sendNotification);
             gateThresholdSlider.setValue(-30.0); gateHoldSlider.setValue(60.0); gateReleaseSlider.setValue(100.0);
         } else if (id == 6) { // Ducked Ambient
-            dwellSlider.setValue(0.92); toneSlider.setValue(0.60); mixSlider.setValue(0.55);
+            dwellSlider.setValue(0.91); toneSlider.setValue(0.60); mixSlider.setValue(0.55);
             duckingAmountSlider.setValue(0.70); duckingReleaseSlider.setValue(300.0);
         }
     };
@@ -192,7 +212,7 @@ void CyberWaveReverbAudioProcessorEditor::paint (juce::Graphics& g)
     g.drawText("DROP IR .WAV FILE HERE", bounds.getWidth() - 280.0f, 30.0f, 240.0f, 16.0f, juce::Justification::centred);
     g.setFont(juce::FontOptions(10.0f, juce::Font::plain));
     g.setColour(juce::Colour(0xff94a3b8));
-    g.drawText("Auto-Fits Algorithmic Reverb Math", bounds.getWidth() - 280.0f, 48.0f, 240.0f, 16.0f, juce::Justification::centred);
+    g.drawText("Auto-Fits Slim Hardware Profile", bounds.getWidth() - 280.0f, 48.0f, 240.0f, 16.0f, juce::Justification::centred);
 }
 
 void CyberWaveReverbAudioProcessorEditor::resized()
@@ -207,14 +227,15 @@ void CyberWaveReverbAudioProcessorEditor::resized()
     };
 
     // Easy Mode Row 1
-    layoutControl(dwellLabel, dwellSlider, 50, startY);
-    layoutControl(toneLabel, toneSlider, 170, startY);
-    layoutControl(mixLabel, mixSlider, 290, startY);
+    layoutControl(dwellLabel, dwellSlider, 40, startY);
+    layoutControl(toneLabel, toneSlider, 150, startY);
+    layoutControl(mixLabel, mixSlider, 260, startY);
 
-    presetLabel.setBounds(440, startY, 160, 18);
-    presetBox.setBounds(440, startY + 22, 160, 32);
+    presetLabel.setBounds(380, startY, 150, 18);
+    presetBox.setBounds(380, startY + 22, 150, 30);
 
-    advancedToggleButton.setBounds(440, startY + 68, 260, 32);
+    advancedToggleButton.setBounds(545, startY + 22, 205, 30);
+    exportProfileButton.setBounds(380, startY + 62, 370, 30);
 
     // Advanced Tweaker Controls Visibility & Layout
     bool showAdv = isAdvancedMode;

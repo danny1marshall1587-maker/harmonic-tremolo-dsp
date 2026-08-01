@@ -46,7 +46,7 @@ private:
                               float sliderPos, float rotaryStartAngle, float rotaryEndAngle,
                               juce::Slider& slider) override {
             juce::ignoreUnused(slider);
-            auto radius = (float) juce::jmin(width / 2, height / 2) - 8.0f;
+            auto radius = (float) juce::jmin(width / 2, height / 2) - 6.0f;
             auto centreX = (float) x + (float) width * 0.5f;
             auto centreY = (float) y + (float) height * 0.5f;
             auto rx = centreX - radius;
@@ -95,6 +95,7 @@ private:
     juce::Label gateThresholdLabel, gateHoldLabel, gateReleaseLabel;
 
     juce::TextButton advancedToggleButton;
+    juce::TextButton exportProfileButton;
 
     // Presets
     juce::ComboBox presetBox;
@@ -111,6 +112,8 @@ private:
     std::unique_ptr<ButtonAttachment> gateToggleAttach;
     std::unique_ptr<SliderAttachment> gateThresholdAttach, gateHoldAttach, gateReleaseAttach;
     std::unique_ptr<ButtonAttachment> advancedToggleAttach;
+
+    std::unique_ptr<juce::FileChooser> fileChooser;
 
     bool isAdvancedMode = false;
     float animPhase = 0.0f;
