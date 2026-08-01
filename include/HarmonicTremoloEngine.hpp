@@ -4,11 +4,10 @@
 #include <cmath>
 #include <algorithm>
 
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
-#endif
-
 namespace AudioDSP {
+
+constexpr double PI_DOUBLE = 3.14159265358979323846;
+constexpr float PI_FLOAT = 3.14159265358979323846f;
 
 /**
  * @brief High-Performance Fender Tri-Verb style Harmonic Tremolo Core Engine
@@ -111,7 +110,7 @@ public:
         float lfoHighR = computeLFO(mLFOPhaseR + 0.5);
 
         // Filter coefficients (Cytomic State Variable Filter)
-        const float g = std::tan(static_cast<float>(M_PI) * mSmoothedCrossover / static_cast<float>(mSampleRate));
+        const float g = std::tan(PI_FLOAT * mSmoothedCrossover / static_cast<float>(mSampleRate));
         const float k = 1.0f / mQ;
         const float a1 = 1.0f / (1.0f + g * (g + k));
         const float a2 = g * a1;
@@ -191,13 +190,13 @@ private:
 
         switch (mWaveform) {
             case LFOWaveform::Sine:
-                return static_cast<float>(std::sin(2.0 * M_PI * p));
+                return static_cast<float>(std::sin(2.0 * PI_DOUBLE * p));
 
             case LFOWaveform::Triangle:
                 return static_cast<float>(4.0 * std::abs(p - 0.5) - 1.0);
 
             case LFOWaveform::TubeSine: {
-                double rawSine = std::sin(2.0 * M_PI * p);
+                double rawSine = std::sin(2.0 * PI_DOUBLE * p);
                 return static_cast<float>(std::tanh(1.8 * rawSine) / std::tanh(1.8));
             }
 
@@ -205,7 +204,7 @@ private:
                 return (p < 0.5) ? 0.95f : -0.95f;
 
             default:
-                return static_cast<float>(std::sin(2.0 * M_PI * p));
+                return static_cast<float>(std::sin(2.0 * PI_DOUBLE * p));
         }
     }
 
