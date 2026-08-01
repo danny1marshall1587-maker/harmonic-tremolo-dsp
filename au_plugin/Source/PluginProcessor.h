@@ -1,6 +1,10 @@
-#pragma once
-
-#include <JuceHeader.h>
+#if __has_include(<JuceHeader.h>)
+ #include <JuceHeader.h>
+#else
+ #include <juce_audio_processors/juce_audio_processors.h>
+ #include <juce_audio_utils/juce_audio_utils.h>
+ #include <juce_gui_basics/juce_gui_basics.h>
+#endif
 #include "../../include/HarmonicTremoloEngine.hpp"
 
 class HarmonicTremoloAudioProcessor : public juce::AudioProcessor {

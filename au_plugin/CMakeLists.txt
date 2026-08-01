@@ -26,6 +26,8 @@ juce_add_plugin(HarmonicWobbleTrem
     PRODUCT_NAME "Harmonic Wobble Trem"
 )
 
+juce_generate_juce_header(HarmonicWobbleTrem)
+
 target_sources(HarmonicWobbleTrem
     PRIVATE
         Source/PluginProcessor.cpp
