@@ -18,17 +18,13 @@ CyberWaveReverbAudioProcessorEditor::CyberWaveReverbAudioProcessorEditor (CyberW
         addAndMakeVisible(slider);
     };
 
-    // Easy Mode 3 Main Knobs
-    setupSlider(dwellSlider, dwellLabel, "DWELL / SIZE");
-    setupSlider(toneSlider, toneLabel, "TONE DAMPING");
+    // Main Knobs
     setupSlider(mixSlider, mixLabel, "DRY/WET MIX");
-
-    // Advanced Controls
     setupSlider(preDelaySlider, preDelayLabel, "PRE-DELAY");
-    setupSlider(erLevelSlider, erLevelLabel, "EARLY REFL");
     setupSlider(hpfSlider, hpfLabel, "HPF CUTOFF");
     setupSlider(lpfSlider, lpfLabel, "LPF CUTOFF");
 
+    // Advanced Controls
     setupSlider(duckingAmountSlider, duckingAmountLabel, "DUCK DEPTH");
     setupSlider(duckingReleaseSlider, duckingReleaseLabel, "DUCK RELEASE");
 
@@ -51,69 +47,44 @@ CyberWaveReverbAudioProcessorEditor::CyberWaveReverbAudioProcessorEditor (CyberW
     };
     addAndMakeVisible(advancedToggleButton);
 
-    // Export Pedal Profile (.irprof) Button
-    exportProfileButton.setButtonText("EXPORT PROFILE (.IRPROF)");
-    exportProfileButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff0284c7));
-    exportProfileButton.setColour(juce::TextButton::textColourOffId, juce::Colour(0xffffffff));
-    exportProfileButton.onClick = [this]() {
+    // Export Slim WAV Button for Pedals
+    exportSlimWavButton.setButtonText("EXPORT SLIM IR (.WAV)");
+    exportSlimWavButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff0284c7));
+    exportSlimWavButton.setColour(juce::TextButton::textColourOffId, juce::Colour(0xffffffff));
+    exportSlimWavButton.onClick = [this]() {
         fileChooser = std::make_unique<juce::FileChooser>(
-            "Save Hardware Reverb Profile for Mooer GE / NUX MG-400 / Valeton GP-150...",
-            juce::File::getSpecialLocation(juce::File::userHomeDirectory).getChildFile("reverb_model.irprof"),
-            "*.irprof");
+            "Export Pruned Slim IR WAV File for Hardware Pedals (Mooer GE / NUX MG-400 / Valeton GP-150)...",
+            juce::File::getSpecialLocation(juce::File::userHomeDirectory).getChildFile("slim_pedal_ir.wav"),
+            "*.wav");
 
         fileChooser->launchAsync(juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
             [this](const juce::FileChooser& fc) {
                 auto file = fc.getResult();
                 if (file != juce::File()) {
-                    audioProcessor.getEngine().exportHardwareProfile(file.getFullPathName().toStdString(), file.getFileNameWithoutExtension().toStdString());
+                    audioProcessor.getEngine().exportSlimWavFile(file.getFullPathName().toStdString());
                 }
             });
     };
-    addAndMakeVisible(exportProfileButton);
-
-    // Generate C DSP Code (.c) Button
-    generateCCodeButton.setButtonText("GENERATE C DSP CODE (.C)");
-    generateCCodeButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff10b981)); // Emerald Green
-    generateCCodeButton.setColour(juce::TextButton::textColourOffId, juce::Colour(0xffffffff));
-    generateCCodeButton.onClick = [this]() {
-        fileChooser = std::make_unique<juce::FileChooser>(
-            "Generate Standalone C DSP Code for Hardware Pedal Compilation...",
-            juce::File::getSpecialLocation(juce::File::userHomeDirectory).getChildFile("generated_reverb_algo.c"),
-            "*.c");
-
-        fileChooser->launchAsync(juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
-            [this](const juce::FileChooser& fc) {
-                auto file = fc.getResult();
-                if (file != juce::File()) {
-                    audioProcessor.getEngine().generateAlgorithmCCode(file.getFullPathName().toStdString(), file.getFileNameWithoutExtension().toStdString());
-                }
-            });
-    };
-    addAndMakeVisible(generateCCodeButton);
+    addAndMakeVisible(exportSlimWavButton);
 
     // Presets Box
-    presetBox.addItemList(juce::StringArray{"Custom / Loaded IR", "Smooth Hall", "Bright Plate", "Cyber Space", "80s Gated Snare", "Ducked Ambient"}, 1);
+    presetBox.addItemList(juce::StringArray{"Custom / Loaded IR", "Clean Studio IR", "Warm Cathedral IR", "80s Gated Snare", "Ducked Ambient"}, 1);
     presetBox.setColour(juce::ComboBox::backgroundColourId, juce::Colour(0xff1e293b));
     presetBox.setColour(juce::ComboBox::textColourId, juce::Colour(0xfff8fafc));
     presetBox.setColour(juce::ComboBox::outlineColourId, juce::Colour(0xff00f2fe));
     presetBox.setSelectedId(1);
     presetBox.onChange = [this]() {
         int id = presetBox.getSelectedId();
-        if (id == 2) { // Hall
-            dwellSlider.setValue(0.85); toneSlider.setValue(0.65); mixSlider.setValue(0.45);
-            hpfSlider.setValue(60.0); lpfSlider.setValue(14000.0);
-        } else if (id == 3) { // Plate
-            dwellSlider.setValue(0.65); toneSlider.setValue(0.90); mixSlider.setValue(0.35);
-            hpfSlider.setValue(120.0); lpfSlider.setValue(18000.0);
-        } else if (id == 4) { // Cyber Space
-            dwellSlider.setValue(0.91); toneSlider.setValue(0.80); mixSlider.setValue(0.60);
-            hpfSlider.setValue(40.0); lpfSlider.setValue(16000.0);
-        } else if (id == 5) { // Gated Snare
-            dwellSlider.setValue(0.70); toneSlider.setValue(0.85); mixSlider.setValue(0.50);
+        if (id == 2) { // Studio
+            mixSlider.setValue(0.35); preDelaySlider.setValue(5.0); hpfSlider.setValue(80.0); lpfSlider.setValue(16000.0);
+        } else if (id == 3) { // Cathedral
+            mixSlider.setValue(0.55); preDelaySlider.setValue(35.0); hpfSlider.setValue(40.0); lpfSlider.setValue(12000.0);
+        } else if (id == 4) { // Gated Snare
+            mixSlider.setValue(0.50); preDelaySlider.setValue(0.0);
             gateToggle.setToggleState(true, juce::sendNotification);
             gateThresholdSlider.setValue(-30.0); gateHoldSlider.setValue(60.0); gateReleaseSlider.setValue(100.0);
-        } else if (id == 6) { // Ducked Ambient
-            dwellSlider.setValue(0.91); toneSlider.setValue(0.60); mixSlider.setValue(0.55);
+        } else if (id == 5) { // Ducked Ambient
+            mixSlider.setValue(0.60); preDelaySlider.setValue(20.0);
             duckingAmountSlider.setValue(0.70); duckingReleaseSlider.setValue(300.0);
         }
     };
@@ -126,12 +97,8 @@ CyberWaveReverbAudioProcessorEditor::CyberWaveReverbAudioProcessorEditor (CyberW
     addAndMakeVisible(presetLabel);
 
     // Attachments
-    dwellAttach = std::make_unique<SliderAttachment>(audioProcessor.apvts, "dwell", dwellSlider);
-    toneAttach = std::make_unique<SliderAttachment>(audioProcessor.apvts, "tone", toneSlider);
     mixAttach = std::make_unique<SliderAttachment>(audioProcessor.apvts, "mix", mixSlider);
-
     preDelayAttach = std::make_unique<SliderAttachment>(audioProcessor.apvts, "preDelay", preDelaySlider);
-    erLevelAttach = std::make_unique<SliderAttachment>(audioProcessor.apvts, "erLevel", erLevelSlider);
     hpfAttach = std::make_unique<SliderAttachment>(audioProcessor.apvts, "hpf", hpfSlider);
     lpfAttach = std::make_unique<SliderAttachment>(audioProcessor.apvts, "lpf", lpfSlider);
 
@@ -145,7 +112,7 @@ CyberWaveReverbAudioProcessorEditor::CyberWaveReverbAudioProcessorEditor (CyberW
 
     advancedToggleAttach = std::make_unique<ButtonAttachment>(audioProcessor.apvts, "advancedMode", advancedToggleButton);
 
-    setSize (780, 260);
+    setSize (780, 280);
     startTimerHz(60);
 }
 
@@ -208,66 +175,81 @@ void CyberWaveReverbAudioProcessorEditor::paint (juce::Graphics& g)
 
     // --- Glassmorphic Center Card Header ---
     g.setColour(juce::Colour(0x1a1e293b));
-    g.fillRoundedRectangle(20.0f, 15.0f, bounds.getWidth() - 40.0f, 65.0f, 12.0f);
+    g.fillRoundedRectangle(20.0f, 15.0f, bounds.getWidth() - 40.0f, 75.0f, 12.0f);
     g.setColour(juce::Colour(0x33334155));
-    g.drawRoundedRectangle(20.0f, 15.0f, bounds.getWidth() - 40.0f, 65.0f, 12.0f, 1.5f);
+    g.drawRoundedRectangle(20.0f, 15.0f, bounds.getWidth() - 40.0f, 75.0f, 12.0f, 1.5f);
 
     // Title & Subtitle
     g.setColour(juce::Colour(0xfff8fafc));
     g.setFont(juce::FontOptions(22.0f, juce::Font::bold));
     g.drawText("CYBERWAVE REVERB", 40, 22, 380, 26, juce::Justification::left);
 
-    // Display Synthesized Algorithm Topology Name
-    juce::String topoStr = "Synthesized Topology: " + audioProcessor.getEngine().getTopologyName();
-    g.setColour(juce::Colour(0xff10b981)); // Emerald Green
+    g.setColour(juce::Colour(0xff00f2fe)); // Cyan Subtitle
     g.setFont(juce::FontOptions(12.0f, juce::Font::bold));
-    g.drawText(topoStr, 40, 48, 420, 20, juce::Justification::left);
+    g.drawText("True Partitioned Overlap-Save FFT Convolution Engine", 40, 48, 420, 20, juce::Justification::left);
 
     // Drag and Drop Zone Card
     g.setColour(juce::Colour(0x1a0284c7));
-    g.fillRoundedRectangle(bounds.getWidth() - 280.0f, 22.0f, 240.0f, 50.0f, 8.0f);
+    g.fillRoundedRectangle(bounds.getWidth() - 280.0f, 22.0f, 240.0f, 60.0f, 8.0f);
     g.setColour(juce::Colour(0xff00f2fe));
-    g.drawRoundedRectangle(bounds.getWidth() - 280.0f, 22.0f, 240.0f, 50.0f, 8.0f, 1.5f);
+    g.drawRoundedRectangle(bounds.getWidth() - 280.0f, 22.0f, 240.0f, 60.0f, 8.0f, 1.5f);
 
     g.setFont(juce::FontOptions(11.0f, juce::Font::bold));
     g.setColour(juce::Colour(0xfff8fafc));
-    g.drawText("DROP IR .WAV FILE HERE", bounds.getWidth() - 280.0f, 30.0f, 240.0f, 16.0f, juce::Justification::centred);
-    g.setFont(juce::FontOptions(10.0f, juce::Font::plain));
-    g.setColour(juce::Colour(0xff94a3b8));
-    g.drawText("Synthesizes Unique DSP Algorithm", bounds.getWidth() - 280.0f, 48.0f, 240.0f, 16.0f, juce::Justification::centred);
+    g.drawText("DROP IR .WAV FILE HERE", bounds.getWidth() - 280.0f, 28.0f, 240.0f, 16.0f, juce::Justification::centred);
+
+    // Draw Loaded IR Waveform Minimap
+    if (audioProcessor.getEngine().isLoaded()) {
+        const auto& ir = audioProcessor.getEngine().getRawIrWaveform();
+        int waveX = bounds.getWidth() - 270.0f;
+        int waveY = 48;
+        int waveW = 220;
+        int waveH = 28;
+
+        g.setColour(juce::Colour(0x6600f2fe));
+        juce::Path wavePath;
+        int numPts = std::min(waveW, static_cast<int>(ir.size()));
+        for (int i = 0; i < numPts; ++i) {
+            int idx = static_cast<int>((static_cast<double>(i) / waveW) * ir.size());
+            float v = std::abs(ir[idx]);
+            float px = waveX + i;
+            float py = waveY + waveH - (v * waveH);
+            if (i == 0) wavePath.startNewSubPath(px, py);
+            else        wavePath.lineTo(px, py);
+        }
+        g.strokePath(wavePath, juce::PathStrokeType(1.2f));
+    } else {
+        g.setFont(juce::FontOptions(10.0f, juce::Font::plain));
+        g.setColour(juce::Colour(0xff94a3b8));
+        g.drawText("Zero-Latency Partitioned Convolution", bounds.getWidth() - 280.0f, 50.0f, 240.0f, 16.0f, juce::Justification::centred);
+    }
 }
 
 void CyberWaveReverbAudioProcessorEditor::resized()
 {
     int knobW = 95;
     int knobH = 115;
-    int startY = 100;
+    int startY = 110;
 
     auto layoutControl = [knobW, knobH](juce::Label& label, juce::Slider& slider, int x, int y) {
         label.setBounds(x, y, knobW, 18);
         slider.setBounds(x, y + 20, knobW, knobH - 20);
     };
 
-    // Easy Mode Row 1
-    layoutControl(dwellLabel, dwellSlider, 40, startY);
-    layoutControl(toneLabel, toneSlider, 150, startY);
-    layoutControl(mixLabel, mixSlider, 260, startY);
+    // Main Row
+    layoutControl(mixLabel, mixSlider, 40, startY);
+    layoutControl(preDelayLabel, preDelaySlider, 150, startY);
+    layoutControl(hpfLabel, hpfSlider, 260, startY);
+    layoutControl(lpfLabel, lpfSlider, 370, startY);
 
-    presetLabel.setBounds(380, startY, 150, 18);
-    presetBox.setBounds(380, startY + 22, 150, 30);
+    presetLabel.setBounds(490, startY, 150, 18);
+    presetBox.setBounds(490, startY + 22, 150, 30);
 
-    advancedToggleButton.setBounds(545, startY + 22, 205, 30);
+    advancedToggleButton.setBounds(490, startY + 62, 260, 30);
+    exportSlimWavButton.setBounds(650, startY + 22, 100, 30);
 
-    exportProfileButton.setBounds(380, startY + 62, 180, 30);
-    generateCCodeButton.setBounds(570, startY + 62, 180, 30);
-
-    // Advanced Tweaker Controls Visibility & Layout
+    // Advanced Controls Layout
     bool showAdv = isAdvancedMode;
-
-    preDelaySlider.setVisible(showAdv); preDelayLabel.setVisible(showAdv);
-    erLevelSlider.setVisible(showAdv); erLevelLabel.setVisible(showAdv);
-    hpfSlider.setVisible(showAdv); hpfLabel.setVisible(showAdv);
-    lpfSlider.setVisible(showAdv); lpfLabel.setVisible(showAdv);
 
     duckingAmountSlider.setVisible(showAdv); duckingAmountLabel.setVisible(showAdv);
     duckingReleaseSlider.setVisible(showAdv); duckingReleaseLabel.setVisible(showAdv);
@@ -278,26 +260,19 @@ void CyberWaveReverbAudioProcessorEditor::resized()
     gateReleaseSlider.setVisible(showAdv); gateReleaseLabel.setVisible(showAdv);
 
     if (showAdv) {
-        setSize(780, 600);
+        setSize(780, 520);
 
         int advY1 = startY + knobH + 25;
 
-        layoutControl(preDelayLabel, preDelaySlider, 50, advY1);
-        layoutControl(erLevelLabel, erLevelSlider, 160, advY1);
-        layoutControl(hpfLabel, hpfSlider, 270, advY1);
-        layoutControl(lpfLabel, lpfSlider, 380, advY1);
+        layoutControl(duckingAmountLabel, duckingAmountSlider, 50, advY1);
+        layoutControl(duckingReleaseLabel, duckingReleaseSlider, 160, advY1);
 
-        layoutControl(duckingAmountLabel, duckingAmountSlider, 510, advY1);
-        layoutControl(duckingReleaseLabel, duckingReleaseSlider, 620, advY1);
+        gateToggle.setBounds(280, advY1 + 40, 130, 24);
 
-        int advY2 = advY1 + knobH + 20;
-
-        gateToggle.setBounds(50, advY2 + 40, 130, 24);
-
-        layoutControl(gateThresholdLabel, gateThresholdSlider, 190, advY2);
-        layoutControl(gateHoldLabel, gateHoldSlider, 300, advY2);
-        layoutControl(gateReleaseLabel, gateReleaseSlider, 410, advY2);
+        layoutControl(gateThresholdLabel, gateThresholdSlider, 420, advY1);
+        layoutControl(gateHoldLabel, gateHoldSlider, 530, advY1);
+        layoutControl(gateReleaseLabel, gateReleaseSlider, 640, advY1);
     } else {
-        setSize(780, 260);
+        setSize(780, 280);
     }
 }

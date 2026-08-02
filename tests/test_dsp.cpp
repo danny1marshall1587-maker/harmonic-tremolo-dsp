@@ -1,7 +1,7 @@
 #include "../include/HarmonicTremoloEngine.hpp"
 #include "../embedded/mooer_harmonic_tremolo.h"
-#include "../include/IRApproxReverbEngine.hpp"
-#include "../embedded/mooer_ir_reverb.h"
+#include "../include/TrueIRConvolutionEngine.hpp"
+#include "../embedded/mooer_true_ir_convolver.h"
 #include <iostream>
 #include <vector>
 #include <cassert>
@@ -9,7 +9,7 @@
 
 int main() {
     std::cout << "========================================================\n";
-    std::cout << " Running Tremolo & Reverb DSP Engine Tests...\n";
+    std::cout << " Running Tremolo & True IR Convolver DSP Tests...\n";
     std::cout << "========================================================\n\n";
 
     // 1. Test Tremolo C++ Engine Initialization and Prepare
@@ -60,49 +60,43 @@ int main() {
 
     std::cout << "[PASS] Embedded C Tremolo Process executed 1,024 samples cleanly.\n";
 
-    // 4. Test Reverb C++ Engine & IR Analyzer
-    AudioDSP::IRApproxReverbEngine reverbEngine;
-    reverbEngine.prepare(48000.0);
-    reverbEngine.setDwell(0.80f);
-    reverbEngine.setTone(0.70f);
-    reverbEngine.setMix(0.50f);
-    reverbEngine.setDuckingAmount(0.60f);
-    reverbEngine.setGateEnabled(true);
+    // 4. Test True IR Convolution C++ Engine (Partitioned FFT Convolver)
+    AudioDSP::TrueIRConvolver irConvolver;
+    irConvolver.prepare(48000.0);
+    irConvolver.setMix(0.50f);
 
     // Mock IR Buffer (decaying noise burst)
     std::vector<float> mockIr(48000, 0.0f);
     for (size_t i = 0; i < mockIr.size(); ++i) {
         mockIr[i] = std::exp(-static_cast<float>(i) / 4800.0f) * ((i % 2 == 0) ? 0.5f : -0.5f);
     }
-    reverbEngine.analyzeImpulseResponse(mockIr.data(), static_cast<int>(mockIr.size()), 48000.0);
+    bool loaded = irConvolver.loadImpulseResponse(mockIr.data(), static_cast<int>(mockIr.size()), 48000.0);
+    assert(loaded);
 
     for (int b = 0; b < 10; ++b) {
-        reverbEngine.processBlock(inPointers, outPointers, 2, blockSize);
+        irConvolver.processBlock(inPointers, outPointers, 2, blockSize);
         for (int i = 0; i < blockSize; ++i) {
             assert(!std::isnan(outL[i]) && !std::isinf(outL[i]));
             assert(!std::isnan(outR[i]) && !std::isinf(outR[i]));
         }
     }
 
-    std::cout << "[PASS] Reverb C++ Engine & IR Analyzer executed 5,120 samples cleanly.\n";
+    std::cout << "[PASS] True IR Partitioned FFT Convolver executed 5,120 samples cleanly.\n";
 
-    // 5. Test Embedded C Reverb
-    MooerIRReverb cReverbHandle;
-    MooerIRReverb_Init(&cReverbHandle, 48000.0f);
-    cReverbHandle.dwell = 0.85f;
-    cReverbHandle.tone = 0.75f;
-    cReverbHandle.mix = 0.50f;
+    // 5. Test Embedded C True IR Convolver
+    MooerTrueIRConvolver cConvolverHandle;
+    MooerTrueIRConvolver_Init(&cConvolverHandle, 48000.0f);
+    MooerTrueIRConvolver_LoadIR(&cConvolverHandle, mockIr.data(), 1024);
 
     std::vector<float> cReverbBuffer(1024, 0.5f);
-    MooerIRReverb_ProcessBuffer(&cReverbHandle, cReverbBuffer.data(), static_cast<int>(cReverbBuffer.size()));
+    MooerTrueIRConvolver_ProcessBuffer(&cConvolverHandle, cReverbBuffer.data(), static_cast<int>(cReverbBuffer.size()));
 
     for (size_t i = 0; i < cReverbBuffer.size(); ++i) {
         assert(!std::isnan(cReverbBuffer[i]) && !std::isinf(cReverbBuffer[i]));
     }
 
-    std::cout << "[PASS] Embedded C Reverb executed 1,024 samples cleanly.\n";
-    std::cout << "\nAll Tremolo & Reverb DSP tests completed successfully!\n";
+    std::cout << "[PASS] Embedded C True IR Convolver executed 1,024 samples cleanly.\n";
+    std::cout << "\nAll Tremolo & True IR Convolver DSP tests completed successfully!\n";
 
     return 0;
 }
-

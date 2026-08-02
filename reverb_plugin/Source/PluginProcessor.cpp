@@ -17,14 +17,10 @@ juce::AudioProcessorValueTreeState::ParameterLayout CyberWaveReverbAudioProcesso
 {
     std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
 
-    params.push_back(std::make_unique<juce::AudioParameterFloat>("dwell", "Dwell / Size", 0.1f, 0.98f, 0.75f));
-    params.push_back(std::make_unique<juce::AudioParameterFloat>("tone", "Tone Damping", 0.0f, 1.0f, 0.70f));
     params.push_back(std::make_unique<juce::AudioParameterFloat>("mix", "Dry/Wet Mix", 0.0f, 1.0f, 0.40f));
-
-    params.push_back(std::make_unique<juce::AudioParameterFloat>("preDelay", "Pre-Delay (ms)", 0.0f, 100.0f, 15.0f));
-    params.push_back(std::make_unique<juce::AudioParameterFloat>("erLevel", "Early Reflections", 0.0f, 1.0f, 0.50f));
-    params.push_back(std::make_unique<juce::AudioParameterFloat>("hpf", "HPF Cutoff (Hz)", 20.0f, 1000.0f, 80.0f));
-    params.push_back(std::make_unique<juce::AudioParameterFloat>("lpf", "LPF Cutoff (Hz)", 1000.0f, 20000.0f, 12000.0f));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>("preDelay", "Pre-Delay (ms)", 0.0f, 100.0f, 0.0f));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>("hpf", "HPF Cutoff (Hz)", 20.0f, 1000.0f, 40.0f));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>("lpf", "LPF Cutoff (Hz)", 1000.0f, 20000.0f, 16000.0f));
 
     params.push_back(std::make_unique<juce::AudioParameterFloat>("duckingAmount", "Ducking Depth", 0.0f, 1.0f, 0.0f));
     params.push_back(std::make_unique<juce::AudioParameterFloat>("duckingRelease", "Ducking Release (ms)", 10.0f, 1000.0f, 250.0f));
@@ -67,12 +63,8 @@ void CyberWaveReverbAudioProcessor::processBlock(juce::AudioBuffer<float>& buffe
     juce::ScopedNoDenormals noDenormals;
 
     // Sync APVTS parameters to engine
-    mEngine.setDwell(apvts.getRawParameterValue("dwell")->load());
-    mEngine.setTone(apvts.getRawParameterValue("tone")->load());
     mEngine.setMix(apvts.getRawParameterValue("mix")->load());
-
     mEngine.setPreDelayMs(apvts.getRawParameterValue("preDelay")->load());
-    mEngine.setErLevel(apvts.getRawParameterValue("erLevel")->load());
     mEngine.setHpfCutoffHz(apvts.getRawParameterValue("hpf")->load());
     mEngine.setLpfCutoffHz(apvts.getRawParameterValue("lpf")->load());
 
@@ -101,12 +93,12 @@ void CyberWaveReverbAudioProcessor::loadAndAnalyzeIRFile(const juce::File& file)
     std::unique_ptr<juce::AudioFormatReader> reader(formatManager.createReaderFor(file));
     if (reader != nullptr) {
         int numSamples = static_cast<int>(reader->lengthInSamples);
-        if (numSamples > 0 && numSamples < static_cast<int>(reader->sampleRate * 12)) { // Cap at 12 seconds
+        if (numSamples > 0 && numSamples < static_cast<int>(reader->sampleRate * 15)) { // Cap at 15 seconds
             int numChans = reader->numChannels;
             juce::AudioBuffer<float> irBuf(numChans, numSamples);
             reader->read(&irBuf, 0, numSamples, 0, true, false);
 
-            // Create mono sum buffer for full acoustic analysis
+            // Create mono sum buffer for true convolution
             std::vector<float> monoSum(numSamples, 0.0f);
             for (int ch = 0; ch < numChans; ++ch) {
                 const float* ptr = irBuf.getReadPointer(ch);
@@ -115,21 +107,7 @@ void CyberWaveReverbAudioProcessor::loadAndAnalyzeIRFile(const juce::File& file)
                 }
             }
 
-            mEngine.analyzeImpulseResponse(monoSum.data(), numSamples, reader->sampleRate);
-
-            // Synchronize all APVTS parameters with the analyzed IR values
-            auto updateParam = [this](const juce::String& paramId, float value) {
-                if (auto* param = apvts.getParameter(paramId)) {
-                    param->setValueNotifyingHost(param->convertTo0to1(value));
-                }
-            };
-
-            updateParam("dwell", mEngine.getDwell());
-            updateParam("tone", mEngine.getTone());
-            updateParam("preDelay", mEngine.getPreDelayMs());
-            updateParam("erLevel", mEngine.getErLevel());
-            updateParam("hpf", mEngine.getHpfCutoffHz());
-            updateParam("lpf", mEngine.getLpfCutoffHz());
+            mEngine.loadImpulseResponse(monoSum.data(), numSamples, reader->sampleRate);
         }
     }
 }

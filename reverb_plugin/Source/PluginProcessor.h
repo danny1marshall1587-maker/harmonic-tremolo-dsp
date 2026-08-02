@@ -10,7 +10,7 @@
  #include <juce_audio_utils/juce_audio_utils.h>
 #endif
 
-#include "IRApproxReverbEngine.hpp"
+#include "TrueIRConvolutionEngine.hpp"
 
 class CyberWaveReverbAudioProcessor : public juce::AudioProcessor {
 public:
@@ -44,12 +44,12 @@ public:
 
     void loadAndAnalyzeIRFile(const juce::File& file);
 
-    AudioDSP::IRApproxReverbEngine& getEngine() { return mEngine; }
+    AudioDSP::TrueIRConvolver& getEngine() { return mEngine; }
     juce::AudioProcessorValueTreeState apvts;
 
 private:
     juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
-    AudioDSP::IRApproxReverbEngine mEngine;
+    AudioDSP::TrueIRConvolver mEngine;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(CyberWaveReverbAudioProcessor)
 };

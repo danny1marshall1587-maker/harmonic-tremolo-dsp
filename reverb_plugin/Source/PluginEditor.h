@@ -81,11 +81,8 @@ private:
     BlueCyberLookAndFeel customLookAndFeel;
 
     // Controls
-    juce::Slider dwellSlider, toneSlider, mixSlider;
-    juce::Label dwellLabel, toneLabel, mixLabel;
-
-    juce::Slider preDelaySlider, erLevelSlider, hpfSlider, lpfSlider;
-    juce::Label preDelayLabel, erLevelLabel, hpfLabel, lpfLabel;
+    juce::Slider mixSlider, preDelaySlider, hpfSlider, lpfSlider;
+    juce::Label mixLabel, preDelayLabel, hpfLabel, lpfLabel;
 
     juce::Slider duckingAmountSlider, duckingReleaseSlider;
     juce::Label duckingAmountLabel, duckingReleaseLabel;
@@ -95,8 +92,7 @@ private:
     juce::Label gateThresholdLabel, gateHoldLabel, gateReleaseLabel;
 
     juce::TextButton advancedToggleButton;
-    juce::TextButton exportProfileButton;
-    juce::TextButton generateCCodeButton;
+    juce::TextButton exportSlimWavButton;
 
     // Presets
     juce::ComboBox presetBox;
@@ -105,10 +101,8 @@ private:
     // Attachments
     using SliderAttachment = juce::AudioProcessorValueTreeState::SliderAttachment;
     using ButtonAttachment = juce::AudioProcessorValueTreeState::ButtonAttachment;
-    using ComboBoxAttachment = juce::AudioProcessorValueTreeState::ComboBoxAttachment;
 
-    std::unique_ptr<SliderAttachment> dwellAttach, toneAttach, mixAttach;
-    std::unique_ptr<SliderAttachment> preDelayAttach, erLevelAttach, hpfAttach, lpfAttach;
+    std::unique_ptr<SliderAttachment> mixAttach, preDelayAttach, hpfAttach, lpfAttach;
     std::unique_ptr<SliderAttachment> duckingAmountAttach, duckingReleaseAttach;
     std::unique_ptr<ButtonAttachment> gateToggleAttach;
     std::unique_ptr<SliderAttachment> gateThresholdAttach, gateHoldAttach, gateReleaseAttach;
